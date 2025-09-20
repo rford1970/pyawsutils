@@ -1,0 +1,2 @@
+# pyawsutils
+Python AWS utils
