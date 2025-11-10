@@ -86,7 +86,10 @@ def main(profiles, outfile):
 
             for page in paginator.paginate():
                 for function in page['Functions']:
-                    functions.append([acct_num, function['FunctionName'], function['Runtime'], region])
+                    try:
+                        functions.append([acct_num, function['FunctionName'], function['Runtime'], region])
+                    except Exception:
+                        pass
 
     if outfile == '':
         print(f"{'Account':<13} {'Function Name':<42} {'Runtime':<15}")
