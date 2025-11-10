@@ -72,7 +72,6 @@ def main(profiles, outfile):
             logging.error(f"Failed to create session for profile {profile}")
             continue
         sts_client = session.client('sts')
-        lambda_client = session.client('lambda')
 
         try:
             acct_num = sts_client.get_caller_identity().get('Account')
@@ -80,11 +79,14 @@ def main(profiles, outfile):
             logging.error(f"Failed to get account ID for profile {profile}: {e}")
             continue
 
-        paginator = lambda_client.get_paginator('list_functions')
+        for region in ("us-east-1", "us-east-2", "us-west-2"):
+            lambda_client = session.client('lambda', region_name=region)
 
-        for page in paginator.paginate():
-            for function in page['Functions']:
-                functions.append([acct_num, function['FunctionName'], function['Runtime']])
+            paginator = lambda_client.get_paginator('list_functions')
+
+            for page in paginator.paginate():
+                for function in page['Functions']:
+                    functions.append([acct_num, function['FunctionName'], function['Runtime'], region])
 
     if outfile == '':
         print(f"{'Account':<13} {'Function Name':<42} {'Runtime':<15}")
@@ -96,7 +98,7 @@ def main(profiles, outfile):
         try:
             with Path(outfile).open('w') as f:
                 writer = csv.writer(f)
-                writer.writerow(["Account", "Function Name", "Runtime"])
+                writer.writerow(["Account", "Function Name", "Runtime", "Region"])
                 writer.writerows(functions)
         except Exception:
             logging.error(f"Failed to write {outfile}")
