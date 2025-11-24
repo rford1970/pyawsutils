@@ -75,6 +75,18 @@ def main(profiles, outfile, outputformat, dry_run, tformat, regions):
                                     'SubnetId': eni['SubnetId']
                                 }
 
+                            volumes = []
+                            if 'BlockDeviceMappings' in inst:
+                                for device in inst['BlockDeviceMappings']:
+                                    volume_info = {
+                                        'DeviceName': device.get('DeviceName'),
+                                        'VolumeId': device.get('Ebs', {}).get('VolumeId'),
+                                        'Status': device.get('Ebs', {}).get('Status'),
+                                        'AttachTime': str(device.get('Ebs', {}).get('AttachTime')),
+                                        'DeleteOnTermination': device.get('Ebs', {}).get('DeleteOnTermination')
+                                    }
+                                    volumes.append(volume_info)
+
                             key = f"{inst['InstanceId']}_{acct_num}_{region}"
                             instances_found[key] = {
                                 'instance_id': inst['InstanceId'],
@@ -87,7 +99,8 @@ def main(profiles, outfile, outputformat, dry_run, tformat, regions):
                                 'publicipv4': inst.get('PublicIpAddress'),
                                 'vpc': inst.get('VpcId', 'N/A'),
                                 'subnet': inst.get('SubnetId', 'N/A'),
-                                'enis': enis
+                                'enis': enis,
+                                'volumes': volumes
                             }
 
     if not instances_found:
@@ -109,7 +122,7 @@ def main(profiles, outfile, outputformat, dry_run, tformat, regions):
         with Path(outfile).open('w', encoding='utf-8') as f:
             if outputformat == "CSV":
                 writer = csv.writer(f)
-                writer.writerow(["InstanceID", "Name", "Account", "Type", "State", "AZ", "PrivateIP", "PublicIP", "VPC", "Subnet", "ENIs"])
+                writer.writerow(["InstanceID", "Name", "Account", "Type", "State", "AZ", "PrivateIP", "PublicIP", "VPC", "Subnet", "ENIs", "Volumes"])
                 for instance in sorted(instances_found.values(), key=lambda x: (x["account"], x["az"], x["instance_id"])):
                     writer.writerow([
                         instance["instance_id"],
@@ -122,7 +135,8 @@ def main(profiles, outfile, outputformat, dry_run, tformat, regions):
                         instance["publicipv4"],
                         instance["vpc"],
                         instance["subnet"],
-                        json.dumps(instance["enis"], separators=(",", ":"), default=str)
+                        json.dumps(instance["enis"], separators=(",", ":"), default=str),
+                        json.dumps(instance["volumes"], separators=(", ", ":"), default=str)
                     ])
             else:
                 f.write(json.dumps(instances_found, indent=4))
